@@ -22,18 +22,6 @@ knitr::opts_chunk$set(echo=FALSE,message=FALSE,warning=FALSE)
 
 ***
 
-**Team ID:** 6
-
-**Name:** Claire Lu (Drafting of report and presentation, trial and errror of methods, analysis plans, result analysis)
-
-**Name:** Stephanie Olivera (Coding, data visualization, trial and error of methods, analysis plans, results analysis)
-
-**Name:** Patrick Soong (Initial research into statistical methods and neuroscience, data visualization, trial and error of methods, anaysis plans, results analysis)
-
-**Auditor:** Dale Urbelis (Trian and error of methods, analysis plans)
-
-***
-
 # Introduction
 
 This report demonstrates an exploratory analysis, conducted by Team 6, of the Neuralpixel dataset chosen as the course project for STA 141A, Spring 2019.
