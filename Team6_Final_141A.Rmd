@@ -1,0 +1,445 @@
+---
+title: "Assessing Spike Trains Data To Determine The Existence of Regulatory Relationships Between Regions of the Brain"
+output:
+  html_document:
+    df_print: paged
+    fig_caption: yes
+    number_sections: yes
+  pdf_document: default
+---
+
+<style type="text/css">
+
+body{ /* Normal  */
+      font-size: 18px;
+  }
+
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE,message=FALSE,warning=FALSE)
+```
+
+***
+
+**Team ID:** 6
+
+**Name:** Claire Lu (Drafting of report and presentation, trial and errror of methods, analysis plans, result analysis)
+
+**Name:** Stephanie Olivera (Coding, data visualization, trial and error of methods, analysis plans, results analysis)
+
+**Name:** Patrick Soong (Initial research into statistical methods and neuroscience, data visualization, trial and error of methods, anaysis plans, results analysis)
+
+**Auditor:** Dale Urbelis (Trian and error of methods, analysis plans)
+
+***
+
+# Introduction
+
+This report demonstrates an exploratory analysis, conducted by Team 6, of the Neuralpixel dataset chosen as the course project for STA 141A, Spring 2019.
+
+<span style="color:red">Note: </span> As mentioned in our final presentation feedback, the video we used belonged to the time frame spanning [24000:27000] and not the time frame we observed [1:3000]. Therefore the conclusions we drew from the video and comparisons between video, faceSVD, and firing rates are not valid so I have omitted them from the report. However the conclusions drawn from the faceSVD and firing rates are still valid as the data is from the [1:3000] time frame.
+
+## Background
+
+A spike train is a sequence of times recorded when a neuron fires an action potential. Our brains are firing around a hundred billion neurons, through axons and dendrites, in order to communicate. An electrical signal is passed through one axon to the next cell body, then to dendrites, to the the axon terminal, and then to then get passed on to the next cell body. Each action potential, produced by stimuli, is referred to a spike, normally lasts for 1 millisecond.
+
+For this project, our group will be analyzing the neuropixel data set. This data set is made up of the spike trains of nine different regions of the mouse brain and visual data corresponding to this neural activity. It is stored as a list, where the spike train of each region is stored as a matrix of nonnegative integers where each entry represents neuron spikes at given time intervals. This data was obtained by using Neuropixel technology that uses probes to detect electrical activity in the brain of a mouse to record the neural activity.
+
+The nine different brain regions include the Caudate Putamen (CP), Frontal Motor Cortex (FrMoCtx), Superior Colliculus (SC), Primary Visual Cortex (V1), Midbrain (MB), Thalamus (TH), Hippocampal Formation (HPF), Lateral Septum (LS), and Somatomotor Cortex (SoMoCtx).
+
+CP is the Caudate Putamen, its purpose is to receive the input from cerebral cortex; it is also connected to the thalamus (TH) and part of the Limbic system. It is known for its role in facilitating movement.
+
+FrMoCtx is the Frontal Motor Cortex, the region of the cerebral cortex involved in the planning, control, and execution of voluntary movements of the body.
+
+SC is the Superior Colliculus, it is a layered, multi-sensory structure. Its upper layer receives visual signals from the retina of the eye, while the lower layers process multiple signals from various other parts of the brain. It is involved with directing behavioral responses to stimuli in the environment.
+
+V1 is the Primary Visual Cortex, a structure that is essential to the conscious processing of visual stimuli; it sends signals to the thalamus.
+
+MB is the Midbrain serves important functions in motor movement, particularly movements of the eye, and in auditory and visual processing.
+
+TH is the Thalamus is involved in sensory and motor signal relay and the regulation of consciousness and sleep.
+
+HPF is the Hippocampal Formation. It is associated mainly with memory, in particular long-term memory. The organ also plays an important role in spatial navigation. It is part of the Limbic system which regulates emotion.
+
+LS is the Lateral Septal nuclei which receive reciprocal connections from the hippocampus, midbrain, and thalamus among other regions. The region is thought to be the “pleasure” zone for animals and is associated with reward and reinforcement learning.
+
+SoMoCtx is the Somatosensory Cortex, where information and motor information are processed in the same cortical region. This allows for the acquisition of simple motor skills, such as quadrupedal locomotion. This region is also responsible for processing the sensory processes necessary for nocturnal mammals.
+
+The visual data, otherwise known as the behavioral data, we are using comes from the faceSVD values. The faceSVD values contains the singular values and corresponding masks to reproduce the video. The values were obtained through Singular Value Decomposition (SVD). SVD can be efficiently used to detect motion in videos captured by a static camera. The data set on Canvas contains the first 50 singular values over time and their masks, while the original data set has 500 singular values.
+
+Our goal of this project is to use this data to determine if a relationship exists between the different regions of the brain. We will perform multiple tests in an attempt to determine where these relationships exist and the strength of these relationships.
+
+## Statistical Questions of Interest
+
+**Primary Question:** Examines whether there exists regulatory relationship among regions,
+i.e., the activity in one region affects the activity in another region.
+
+**Secondary Question:** Investigate whether the neural activity is stationary over the whole
+recording period. If not, identify the point(s) at which the patterns of the spike trains change.
+
+Our plan to answer these questions begins by identifying patterns and commonalities in certain regions spikes by looking at plots for each region as well as comparing the plots of multiple regions. By comparing the trends for each region, we will be able to determine if there is a relationship between different regions of the brain. We will also use the behavioral data to observe what causes neurological activity to change if there is a change during the recording period.
+
+# Analysis Plan
+
+We chose to use the first 90 seconds of the data (or the first 3000 30-ms windows; [1:3000]) as we have a video of the mouse at that time frame and can compare the observed activity to the brain activity
+
+In order to determine if there exists a regulatory relationship among regions, We will calculate the firing rate for each region per 30-ms time window. We will then plot the firing rate and fit a smooth best-fit line and use that to measure brain region activity instead of the indivisual neurons in a region. The generated best-fit line for each region represents a moving mean firing rate over time.
+
+## Attempted Analysis Plans
+
+We considered and tried several methods. The methods we attempted and the reasoning we attempted that method are detailed below.
+
+### Time Series Analysis
+
+We considered using time series analysis to determine if there is a relationship in activity between two regions of the brain in terms of the whole time period. Spike trains data inherently is a time series of discrete events. Ensembles of spike trains from simultaneously recorded neurons are consiudered a multi-dimensional point-process time series. These time series are both dynamic and stochastic. However we ran into hardware limitations that prevented us from using time series methods. We attempted dimensional reduction using Principal Component Analysis (PCA) (see below) but were not confident in the results of the PCA.
+
+#### Autocorrelation
+
+We wanted to use autocorrelation or serial correlation to determine if a region’s activity was stationary or if the neural activity pattern changed at some point. Autocorrelation is the correlation of a observations or signal as a function of the time lag between them. The analysis of autocorrelation is a mathematical tool for finding repeating patterns, such as the presence of a periodic signal obscured by noise. If autocorrelation analysis of a region's activity demonstrated a large correlation, the region's activity could be considered stationary. If there was little correlation, than we know the region's activity is not stationary and that we need to determine what is causing the changes.
+
+#### Cross-Correlation
+
+We attempted to use Cross-correlation to see if one region’s neural activity influenced another region’s activity. Cross-correlation is the measure of similarity of two series as a function of the displacement of one relative to the other. It is commonly used for searching long signals for smaller, known patterns or features. Cross-correlation analysis would let us determine if two regions were related as a change in one region would cause a similar change in another region. If two or more regions showed high correlation, then we can establish a relationship between the regions and determine if the relationship is regulatory or not.
+
+
+### Principal Component Analysis (PCA)
+
+PCA is a procedure that uses an orthogonal transformation to convert a set of observations of potentially correlated features into a set of values of linearly uncorrelated variables called principal components. PCA is often used to visualize genetic distance and relatedness between populations. We attempted to use PCA to reduce the number of neurons per region so that all regions had equal principal components. Reducing the dimensions would also allow us to use computationally-intensive methods such as the aformentioned time series analysis. However due to the unique challenges posed by the data and our inexperience with PCA, we were not confident in the result. Therefore we decided to exclude it from our project and proceed with another method of analysis instead.
+
+## Population and Study Design
+
+<span style="color:red">Note: </span>  Discuss the target population of this analysis, and how the study is design to collect representative data for this population.
+
+The target population of this analysis was the eight-probe Neuropixel recordings of the mouse, “Krebs” spontaneous activity. Each probe was recorded simultaneously, where each probe has corresponding location of brain region. This study collected the data by measuring the spike times and the cluster identity of each spike.
+
+## Statistical Analysis
+
+### Descriptive Analysis
+
+We chose to use the first 90 seconds of the data (or the first 3000 30-ms windows; [0:3000]), where the mouse was waking up and started moving.
+
+We chose to exclude the motionMask variable from our analysis due to it only having the values of “NaN”. We did not believe there was any insight to be gained from motionMask.
+
+**Primary Question Analysis:** Compare both the firing rate plots as well as the best-fit firing rate plots to determine relation between regions, we will also use faceSVD values to identify motion and observe how the and regions of the brain responsible for processing motor function and signal behave during those time periods.
+
+**Secondary Question Analysis:** Compare the firing rate plots as well as the best-fit firing rate plots with the faceSVD values in order to determine what is causing changes in neural activity.
+
+# Results
+
+## Descriptive Analysis
+
+```{r, echo=FALSE} 
+# install.packages("R.matlab")
+# setwd("C:/Users/patri/Google Drive/School/S19 - STA141A S. Chen/Project/") 
+library(R.matlab)
+ephysroot = "C:/Users/patri/Google Drive/School/S19 - STA141A S. Chen/Project/Neuralpixel/Data/"; # path of the data set 
+mstr = 'Krebs'; # mouse names
+exp_data<- readMat(paste(ephysroot,mstr,'_reduced.mat',sep='')); ### Load saved data:
+```
+
+```{r, echo=FALSE}
+#faceSVD
+
+time_frame = 1:3000 
+SVD_val_vec <- rep(1, 3000) # can change time frame here
+
+SVD_values <-exp_data$faceSVD # can change brain region here
+
+for(i in 1:length(time_frame)) {
+     SVD_val <- sum(SVD_values[,i])
+     SVD_val_vec[i] <- SVD_val
+}
+
+avg_SVD_val <- SVD_val_vec / 50 # Sum of all SVD values divided bu number of values
+plot(x = time_frame, y = SVD_val_vec, main = "Avg faceSVD Values Over Time", xlab = "Time", ylab = "Avg faceSVD Value", type="l", ann=T, cex.lab=0.8, lwd=1) 
+```
+
+From the faceSVD plot, we can see that the mouse initially showed high amounts of movement due to it waking up. As time progressed, the amount of movement lessens with short periods of motion. We expected to see a similar trend in the neural activity plots for each region. Specifically an upward trend in activity in the [0:1000] time frame and then more activity in the [2000:3000] time frame.
+
+Here are the firing rate plots for each region without the best-fit smooth lines.
+
+```{r, echo=FALSE}
+## CP
+num_fired_vec1 <- rep(0, length(time_frame))
+region1 <-exp_data$stall.CP # can change brain region here
+
+for(i in 1:length(time_frame)) {
+     num_fired1 <- sum(region1[,i])
+     num_fired_vec1[i] <- num_fired1
+}
+
+firing_rate_vec1 <- num_fired_vec1 / (.03) # each time interval is 30ms = 0.03s
+plot(x = time_frame, y = firing_rate_vec1, main = "Firing rates for CP", xlab = "Time", ylab = "Frequency (HZ)", type="l", ann=T, cex.lab=0.8, lwd=1) 
+```
+
+```{r, echo=FALSE}
+## FrMoCtx
+num_fired_vec2 <- rep(0, length(time_frame))
+region2 <-exp_data$stall.FrMoCtx # can change brain region here
+
+for(i in 1:length(time_frame)) {
+     num_fired2 <- sum(region2[,i])
+     num_fired_vec2[i] <- num_fired2
+}
+
+firing_rate_vec2 <- num_fired_vec2 / (.03) # each time interval is 30ms = 0.03s
+plot(x = time_frame, y = firing_rate_vec2,main = "Firing rates for FrMoCtx", xlab = "Time", ylab = "Frequency (HZ)", type="l", ann=T, cex.lab=0.8, lwd=1) 
+```
+
+```{r, echo=FALSE}
+## HPF
+num_fired_vec3 <- rep(0, length(time_frame))
+region3 <-exp_data$stall.HPF # can change brain region here
+
+for(i in 1:length(time_frame)) {
+     num_fired3 <- sum(region3[,i])
+     num_fired_vec3[i] <- num_fired3
+}
+
+firing_rate_vec3 <- num_fired_vec3 / (.03) # each time interval is 30ms = 0.03s
+plot(x = time_frame, y = firing_rate_vec3, main = "Firing rates for HPF",xlab = "Time", ylab = "Frequency (HZ)", type="l", ann=T, cex.lab=0.8, lwd=1) 
+```
+
+```{r, echo=FALSE}
+## LS
+num_fired_vec4 <- rep(0, length(time_frame))
+region4 <-exp_data$stall.LS # can change brain region here
+
+for(i in 1:length(time_frame)) {
+     num_fired4 <- sum(region4[,i])
+     num_fired_vec4[i] <- num_fired4
+}
+
+firing_rate_vec4 <- num_fired_vec4 / (.03) # each time interval is 30ms = 0.03s
+plot(x = time_frame, y = firing_rate_vec4, main = "Firing rates for LS",xlab = "Time", ylab = "Frequency (HZ)", type="l", ann=T, cex.lab=0.8, lwd=1) 
+```
+
+```{r, echo=FALSE}
+## MB
+num_fired_vec5 <- rep(0, length(time_frame))
+region5 <-exp_data$stall.MB # can change brain region here
+
+for(i in 1:length(time_frame)) {
+     num_fired5 <- sum(region5[,i])
+     num_fired_vec5[i] <- num_fired5
+}
+
+firing_rate_vec5 <- num_fired_vec5 / (.03) # each time interval is 30ms = 0.03s
+plot(x = time_frame, y = firing_rate_vec5, main = "Firing rates for MB",xlab = "Time", ylab = "Frequency (HZ)", type="l", ann=T, cex.lab=0.8, lwd=1) 
+```
+
+```{r, echo=FALSE}
+## SC
+num_fired_vec6 <- rep(0, length(time_frame))
+region6 <-exp_data$stall.SC # can change brain region here
+
+for(i in 1:length(time_frame)) {
+     num_fired6 <- sum(region6[,i])
+     num_fired_vec6[i] <- num_fired6
+}
+
+firing_rate_vec6 <- num_fired_vec6 / (.03) # each time interval is 30ms = 0.03s
+plot(x = time_frame, y = firing_rate_vec6, main = "Firing rates for SC",xlab = "Time", ylab = "Frequency (HZ)", type="l", ann=T, cex.lab=0.8, lwd=1) 
+```
+
+```{r, echo=FALSE}
+## SoMoCtx
+num_fired_vec7 <- rep(0, length(time_frame))
+region7 <-exp_data$stall.SomMoCtx # can change brain region here
+
+for(i in 1:length(time_frame)) {
+     num_fired7 <- sum(region7[,i])
+     num_fired_vec7[i] <- num_fired7
+}
+
+firing_rate_vec7 <- num_fired_vec7 / (.03) # each time interval is 30ms = 0.03s
+plot(x = time_frame, y = firing_rate_vec7, main = "Firing rates for soMoCtx",xlab = "Time", ylab = "Frequency (HZ)", type="l", ann=T, cex.lab=0.8, lwd=1) 
+```
+
+```{r, echo=FALSE}
+## TH
+num_fired_vec8 <- rep(0, length(time_frame))
+region8 <-exp_data$stall.TH # can change brain region here
+
+for(i in 1:length(time_frame)) {
+     num_fired8 <- sum(region8[,i])
+     num_fired_vec8[i] <- num_fired8
+}
+
+firing_rate_vec8 <- num_fired_vec8 / (.03) # each time interval is 30ms = 0.03s
+plot(x = time_frame, y = firing_rate_vec8, main = "Firing rates for TH",xlab = "Time", ylab = "Frequency (HZ)", type="l", ann=T, cex.lab=0.8, lwd=1) 
+```
+
+```{r, echo=FALSE}
+## V1
+num_fired_vec9 <- rep(0, length(time_frame))
+region9 <-exp_data$stall.V1 # can change brain region here
+
+for(i in 1:length(time_frame)) {
+     num_fired9 <- sum(region9[,i])
+     num_fired_vec9[i] <- num_fired9
+}
+
+firing_rate_vec9 <- num_fired_vec9 / (.03) # each time interval is 30ms = 0.03s
+plot(x = time_frame, y = firing_rate_vec9, main = "Firing rates for V1",xlab = "Time", ylab = "Frequency (HZ)", type="l", ann=T, cex.lab=0.8, lwd=1) 
+```
+
+After plotting the firing rates for each brain region for the first 90 seconds, we overlaid the the plots of regions where we expected to see correlations for the first 90 seconds and generated the best fit lines with ggplot2. The pairings were picked based on what each region of the brain was responsible for (movement, processing visual or other stimuli, etc) and when each region first exhibited activity.
+
+```{r}
+### multiplot Function from http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/ #########
+### Used from formatting the plots in a grid of 2-by-2 plots ################################################
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+  
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  
+  if (numPlots==1) {
+    print(plots[[1]])
+    
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+```{r, echo=FALSE}
+## Overlaid ggplots by groups ###################################################################
+library("ggplot2")
+
+## First Group: V1(num_fired_vec9) and MB(num_fired_vec5) 
+ggplot = ggplot(as.data.frame(exp_data$stall.V1[1:3000]), aes(x = time_frame, y = firing_rate_vec9, alpha=0.5))
+p1 <- ggplot + geom_line(colour="blue",alpha=.5) + 
+  geom_smooth(colour="blue",alpha=1) + geom_line(data = as.data.frame(exp_data$stall.MB[1:3000]), 
+  aes(x = time_frame, y = firing_rate_vec5, colour="#000099")) + geom_smooth(method="gam", 
+  formula=firing_rate_vec5 ~ s(x, bs = "cs"),colour="red")+ ggtitle("V1 (BLUE) vs. MB (RED)") + 
+  theme(legend.position = "none")
+
+## Second Group: TH(num_fired_vec8) and HPF(num_fired_vec3)
+ggplot = ggplot(as.data.frame(exp_data$stall.V1[1:3000]), aes(x = time_frame, y = firing_rate_vec8, alpha=0.5))
+p2 <- ggplot + geom_line(colour="blue",alpha=.5) + 
+  geom_smooth(colour="blue",alpha=1) + geom_line(data = as.data.frame(exp_data$stall.HPF[1:3000]), 
+  aes(x = time_frame, y = firing_rate_vec3, colour="#000099")) + geom_smooth(method="gam",
+  formula=firing_rate_vec3 ~ s(x, bs = "cs"),colour="red") + ggtitle("TH(BLUE) vs. HPF(RED)") + 
+  theme(legend.position = "none")
+
+## Third Group: LS(num_fired_vec4) and SomMoCtx(num_fired_vec7)
+ggplot = ggplot(as.data.frame(exp_data$stall.LS[1:3000]), aes(x = time_frame, y = firing_rate_vec4, alpha=0.5))
+p3 <- ggplot + geom_line(colour="blue",alpha=.5) + 
+  geom_smooth(colour="blue",alpha=1) + geom_line(data = as.data.frame(exp_data$stall.SomMoCtx[1:3000]), 
+  aes(x = time_frame, y = firing_rate_vec7, colour="#000099")) + geom_smooth(method="gam",
+  formula=firing_rate_vec7 ~ s(x, bs = "cs"),colour="red") + ggtitle("LS(BLUE) vs. SomMoCtx(RED)") + 
+  theme(legend.position = "none")
+
+## Fourth Group: CP(num_fired_vec1) and FrMoCtx(num_fired_vec2) and SC(num_fired_vec6)
+ggplot = ggplot(as.data.frame(exp_data$stall.CP[1:3000]), aes(x = time_frame, y = firing_rate_vec1, alpha=0.5))
+p4 <- ggplot + geom_line(colour="blue",alpha=.3) + 
+  geom_smooth(colour="blue",alpha=1) + geom_line(data = as.data.frame(exp_data$stall.FrMoCtx[1:3000]), 
+  aes(x = time_frame, y = firing_rate_vec2, colour="red"),alpha=.3) + geom_smooth(method="gam",
+  formula=firing_rate_vec2 ~ s(x, bs = "cs"), alpha=1, colour="red") + geom_line(data = 
+  as.data.frame(exp_data$stall.SC[1:3000]), 
+  aes(x = time_frame, y = firing_rate_vec6,colour="green"),alpha=.3) + geom_smooth(method="gam",
+  formula=firing_rate_vec6 ~ s(x, bs = "cs"),colour="green") + 
+  ggtitle("CP(BLUE) vs. FrMoCtx(RED) vs. SC(GREEN)") + 
+  theme(legend.position = "none")
+
+## Generating the individual grouped plots
+#p1 # First Group: V1(num_fired_vec9) and MB(num_fired_vec5) 
+#p2 # Second Group: TH(num_fired_vec8) and HPF(num_fired_vec3)
+#p3 # Third Group: LS(num_fired_vec4) and SomMoCtx(num_fired_vec7)
+#p4 # Fourth Group: CP(num_fired_vec1) and FrMoCtx(num_fired_vec2) and SC(num_fired_vec6)
+
+## Organizing all four plots onto one graph
+multiplot(p1, p2, p3, p4, cols=2)
+```
+
+**Primary Question Results:** From the V1 and MB plot, we can see that the time points of firing spikes are generally align with each other, and the two regions started firing at around the same time. Despite the similarity in trends, the firing rate of MB fluctuates more than the firing rate of V1 for the first 90 seconds.
+
+From the TH vs HPF plot, we can see that the firing rates and firing time points for both regions generally align with each other. Also, the starting time of both regions are approximately the same. Though the of firing points for TH and HPF are similar, the magnitude of fluctuation of firing rate is pretty different for this two parts of the brain.
+
+For the LS and SomMoCtx plot, we can see that the SomMoCtx started firing around 100ms after the lateral septum started firing. And there is a weak correlation between the spiking trend of the two brain regions in the first 30 seconds. This weak correlation is confirmed again as we see the LS region remain constant while the SomMoCtx activity fluctuates a bit more.
+
+For the comparison plot between CP, FrMoCtx, and SC, we can see that Superior Colliculus generally fired with a similar trend with Frontal Motor Cortex, but also followed the spiking pattern of the Caudate Putamen. This means there is a strong correlation between the CP and SC, as well as the SC and the FrMoCtx. This implies there is a correlation between CP and FrMoCtx as well, but it is a weaker one.
+
+**Secondary Question Results: ** The best-fitted lines and the firing rate plots can help us identify stationary activity and the patterns of firing changes. We were able to determine what certain regions influenced others and caused the neural activity in the region due to their relationships.
+
+## Sensitivity Analysis
+
+```{r, echo=FALSE}
+### All Regions w/ Best Fit
+All = ggplot(as.data.frame(exp_data$stall.CP[1:3000]), aes(x = time_frame, y = firing_rate_vec1), color = "blue1")
+All + geom_line(alpha = 0) + geom_smooth() +
+  geom_line(data = as.data.frame(exp_data$stall.FrMoCtx[1:3000]), aes(x = time_frame, y = firing_rate_vec2), alpha = 0.0) +
+  geom_smooth(method="gam", formula=firing_rate_vec2 ~ s(x, bs = "cs"),colour="green") +
+  geom_line(data = as.data.frame(exp_data$stall.HPF[1:3000]), aes(x = time_frame, y = firing_rate_vec3), alpha = 0.0) +
+  geom_smooth(method="gam", formula=firing_rate_vec3 ~ s(x, bs = "cs"),colour="red") +
+  geom_line(data = as.data.frame(exp_data$stall.LS[1:3000]), aes(x = time_frame, y = firing_rate_vec4), alpha = 0.0) +
+  geom_smooth(method="gam", formula=firing_rate_vec4 ~ s(x, bs = "cs"),colour="yellow") +
+  geom_line(data = as.data.frame(exp_data$stall.MB[1:3000]), aes(x = time_frame, y = firing_rate_vec5), alpha = 0.0) +
+  geom_smooth(method="gam", formula=firing_rate_vec5 ~ s(x, bs = "cs"),colour="orange") + 
+  geom_line(data = as.data.frame(exp_data$stall.SC[1:3000]), aes(x = time_frame, y = firing_rate_vec6), alpha = 0.0) +
+  geom_smooth(method="gam", formula=firing_rate_vec6 ~ s(x, bs = "cs"),colour="purple") + 
+  geom_line(data = as.data.frame(exp_data$stall.SomMoCtx[1:3000]), aes(x = time_frame, y = firing_rate_vec7), alpha = 0.0) +
+  geom_smooth(method="gam", formula=firing_rate_vec7 ~ s(x, bs = "cs"),colour="brown") + 
+  geom_line(data = as.data.frame(exp_data$stall.TH[1:3000]), aes(x = time_frame, y = firing_rate_vec8), alpha = 0.0) +
+  geom_smooth(method="gam", formula=firing_rate_vec8 ~ s(x, bs = "cs"),colour="pink") +
+  geom_line(data = as.data.frame(exp_data$stall.V1[1:3000]), aes(x = time_frame, y = firing_rate_vec9), alpha = 0.0) +
+  geom_smooth(method="gam", formula=firing_rate_vec9 ~ s(x, bs = "cs"),colour="steelblue2") + 
+  ggtitle("Best-Fit Firing Rate For all Brain Regions") + coord_cartesian(xlim=c(0,3000), ylim = c(0, 3000)) 
+
+```
+
+Brain Region | Color
+------------- | -------------
+CP | BLue
+FrMoCtx | Green
+HPF | Red
+LS | Yellow
+MB | Orange
+SC | Purple
+SomMoCtx | Brown
+TH | Pink
+V1 | Light Blue
+
+When all the best-fit smooth lines are overlaid, we can see two distinct groups between the firing rates. One of high magnitude and one of lower magnitude. The first, lower magnitude group is composed of the CP, FrMoCtx, LS, SC, and the SomMoCtx regions. The second, higher magnitude group is composed of the HPF, MB, TH, and V1 regions. Interestingly both groups have a mix of regions responsible for processing stimuli and controlling movement of some sort. Another interesting note is that the higher magnitude group has larger fluctations in its values compared to the lower magnitude group. This can also be observed in the confidence intervals for each region.
+
+# Discussion
+
+One limitation of our analysis is that we only looked at the first 90 seconds of the spike trains while the entire length of the recording is around 12 minutes. Exploration of other time frames would help in confirming the insights we've drawn from the Neuralpixel dataset. The brain may processes information differently when we first wake up and begin recieving stimuli verses when the rat has been awake and is continuously processing stimuli. It's possible different brain regions may correlate with other regions during different time points because of that. This may also alter the firing rate.
+
+Another limitation is that we did not normalize the data. In the future we will normalize the data by factoring in the number of neurons in each region into our firing rate calculations. Normalizing the plots into one level of magnitude may also help us discern trends we may have previously missed
+
+## Future Analysis Plans
+
+We plan to examine the entire period of the recording instead of the first 90 seconds of the mouse’s movement. This would allow us to explore relations under different stimulus or activity. The R package “ImageMagick” is not currently supported by R Ver 3.6.0, once updated, we can create video clips of various time frames for exploration for analysis.
+
+Another idea is to explore Kohonen Maps or Self Organizing Maps (SOM). SOMs do not need dimensional reduction as they are a topological mapping technique. Activity patterns detected by the method reflect high-dimensional correlations between recorded neurons. We could see if we can apply this to the regions of the brain instead of neurons.
+
+# Section information
+```{r}
+print(sessionInfo(), local = FALSE)
+```
