@@ -1,0 +1,124 @@
+---
+title: "Data Description"
+author: "Shizhe Chen"
+date: "April 2, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+This document contains basic description of the neuralpixel data on one mouse (Krebs). This is the most challenging data set to analyze among the three data sets, in part due to the fact that this is a fresh data set collected using cutting-edge technologies. 
+
+If you choose to analyze this data set, you will receive 5 bonus points. However, the expectation on the quality of your report will not be lowered. On the bright side, there is much more you can do to impress your classmates on this data set. 
+
+This document is made with R markdown. The Rmd file to generate this document is available on Canvas. 
+
+
+## Background
+
+The data set `Krebs_reduced.mat` contains Neuropixel recordings in a mouse named Krebs during spontaneous activity. The uploaded data set has been processed using Matlab (script can be found in `preprocess.m`) to reduce the size of the data. 
+The original data set can be downloaded from this [webpage](https://janelia.figshare.com/articles/Eight-probe_Neuropixels_recordings_during_spontaneous_behaviors/7739750). You can read more about the data collection technology and the experimental setup in these manuscripts on bioRxiv ([link1](https://www.biorxiv.org/content/10.1101/306019v2), [link2](https://www.biorxiv.org/content/10.1101/474437v1)). 
+
+For this course project, you are not required to fully understand the neuroscience mechanism behind this data set. However, you are expected to be able to communicate your findings in this data set to others who have not seen this data before. For instance, you need to know at least where the regions are in the mouse brain. 
+
+
+
+## Data Structure 
+
+This section contains code for loading and (basic) visualizing for `Krebs_reduced.mat`. Note that your report should not contain trunks of `R` code or raw output. You can achieve this by setting `include=FALSE`---you may need to read the `.rmd` file to understand what this means.
+
+```{r, message=FALSE,  warning=FALSE}
+library(R.matlab) # Install 'R.matlab' if this is the first time you call it.
+
+ephysroot = './Data/'; # path of the data set 
+mstr = 'Krebs'; # mouse na
+### Load saved data:
+exp_data<- readMat(paste(ephysroot,mstr,'_reduced.mat',sep=''));
+# check out data structure
+str(exp_data)
+brain_regions= ls(exp_data)[-c(1:3)]; 
+n_time= dim(exp_data$faceSVD)[2];
+n_sv = dim(exp_data$faceSVD)[1];
+```
+
+This data set contains [spike trains](https://en.wikipedia.org/wiki/Neural_coding) of neurons in nine regions in the mouse brain. The nine regions are Caudate Putamen (CP), Frontal Motor Cortex (FrMoCtx), Hippocampal Formation (HPF), Lateral Septum (LS), Midbrain (MB), Superior Colliculus (SC), Somatomortor Cortex (SomMoCtx), Thalamus (TH),  and Primary visual cortex(V1). 
+Take the recording of CP for instance. The spike train is stored in `exp_data[[brain_regions[1]]]`, which is a matrix of dimension `r  dim(exp_data[[brain_regions[1]]])`. The first number, `r dim(exp_data[[brain_regions[1]]])[1]`, is the number of (estimated) neurons in this region, and the second number, `r dim(exp_data[[brain_regions[1]]])[2]`, is the total number of 30-ms time windows in this recording. In other words, the recording lasts for `r round(dim(exp_data[[brain_regions[1]]])[2]*30/1000,2)` seconds. 
+Each entry in the matrix represents the number of spikes for one neuron in the corresponding time window. 
+
+The following code shows how to extract the spike train for one chosen region. 
+
+```{r}
+i_region = 1; # pick a region
+time_range = c(100, 1000); # Pick a time window (indices of time frame)
+
+### Extract the spike train for this region
+spikes_this_region = exp_data[[brain_regions[1]]]
+
+### Visualize the spike train 
+n_neurons = dim(spikes_this_region)[1]; 
+plot(x=0,y=0,pch=16,col="white",type="l",lwd=3,ylim=c(0,n_neurons),xlim=time_range,cex.lab=1,cex.main=1,ylab='Neuron',xlab='Time frame',main='Spikes') #yaxt='n',xaxt='n',
+
+for(i_neuron in 1:n_neurons){
+  spk_times =which(spikes_this_region[i_neuron,time_range[1]:time_range[2]]>0);
+  if (length(spk_times)>0){
+    points(y=rep(i_neuron,length(spk_times)),x=spk_times+time_range[1]-1,col="#000000",pch='.',cex=2)
+  }
+}
+
+```
+
+This data also contains the so-called behaviour data. In this case, the behaviour data is the video recording of the mouse face. You can draw the average frame with `exp_data$avgframe`. 
+
+
+```{r}
+# Average frame:
+tmp=exp_data$avgframe;
+tmp= apply(tmp, 2, rev)
+par(mfrow=c(1,1))
+image(t(tmp),col=heat.colors(20) )
+```
+
+
+Note here that the raw video is not available. Instead, the data set contains the singular values and corresponding masks to reproduce the video ([svd](https://en.wikipedia.org/wiki/Singular_value_decomposition)). The original data set contains 500 singular values and masks. 
+The data set on Canvas contains the first 50 singular values over time and their masks.  
+Furthermore, the providers of the data set trimmed the video to only contain the face of the mouse. 
+
+```{r}
+time_list = c(1,19000, 22000)
+dims=dim(exp_data$motionMask);
+
+par(mfrow=c(1,length(time_list)))
+for (it in 1:length(time_list)){
+  face_i = matrix(0,nrow=dims[1],ncol=dims[2]);
+  i=time_list[it];
+  
+  for (i_sv in 1:n_sv){
+    tmp=exp_data$motionMask[,,i_sv];
+    tmp[is.nan(tmp)]=0;
+    face_i=face_i+exp_data$faceSVD[i_sv,i]*tmp;
+    
+  }
+  face_i= apply(face_i, 2, rev)
+  image( t(face_i),col=heat.colors(20),zlim=c(-10,10))
+}
+
+```
+
+Note: you can turn this into a movie following the instruction of [this](https://stackoverflow.com/questions/1298100/creating-a-movie-from-a-series-of-plots-in-r) post. A short movie is uploaded on Canvas. 
+
+
+## Questions of Interest
+
+You can choose one of the following question as the primary question of interest for your project. 
+
+* Build a prediction model for the singular values of the face recording using the spike trains 
+
+* Examines whether there exists regulatory relationship among regions, i.e., the activity in one region affects the activity in another region. 
+
+* Investigate whether the neural activity is stationary over the whole recording period. If not, identify the point(s) at which the patterns of the spike trains change. 
+
+You may also raise your own question as the primary question of interest upon the permission of the instructor. 
